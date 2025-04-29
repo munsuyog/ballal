@@ -1,0 +1,137 @@
+ /* "tailwindcss"; */
+
+ @import "tailwindcss";
+ @config "../../tailwind.config.ts";
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 72% 35%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 25 95% 53%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 72% 35%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 72% 45%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 25 95% 53%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 72% 45%;
+  }
+}
+
+/* Minimalistic geometric background patterns */
+.home-bg {
+  background-image: 
+    linear-gradient(135deg, transparent 75%, hsl(var(--primary) / 0.03) 75%),
+    linear-gradient(45deg, transparent 75%, hsl(var(--primary) / 0.03) 75%);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+}
+
+.network-bg {
+  background-image: 
+    linear-gradient(45deg, hsl(var(--primary) / 0.02) 25%, transparent 25%),
+    linear-gradient(-45deg, hsl(var(--primary) / 0.02) 25%, transparent 25%);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 0;
+}
+
+.coursework-bg {
+  background-image: 
+    linear-gradient(0deg, transparent 95%, hsl(var(--primary) / 0.03) 95%),
+    linear-gradient(90deg, transparent 95%, hsl(var(--primary) / 0.03) 95%);
+  background-size: 20px 20px;
+}
+
+.resources-bg {
+  background: 
+    linear-gradient(45deg, hsl(var(--primary) / 0.02) 2px, transparent 2px) 0 0,
+    linear-gradient(-45deg, hsl(var(--primary) / 0.02) 2px, transparent 2px) 0 0;
+  background-size: 40px 40px;
+}
+
+.tech-trends-bg {
+  background-image: radial-gradient(
+    hsl(var(--primary) / 0.03) 1px,
+    transparent 1px
+  );
+  background-size: 20px 20px;
+}
+
+.nexai-bg {
+  background-image: 
+    linear-gradient(30deg, hsl(var(--primary) / 0.02) 12%, transparent 12.5%),
+    linear-gradient(150deg, hsl(var(--primary) / 0.02) 12%, transparent 12.5%);
+  background-size: 60px 60px;
+  background-position: 0 0, 0 0;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-medium;
+    text-wrap: balance;
+  }
+  p {
+    @apply leading-relaxed;
+    text-wrap: pretty;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border; /* error */
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

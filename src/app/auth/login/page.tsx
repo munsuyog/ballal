@@ -16,11 +16,11 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signIn(email, password, '/dashboard');
+    await signIn(email, password, '/');
   };
 
   const handleGoogleSignIn = async () => {
-    await signInWithGoogle('/dashboard');
+    await signInWithGoogle('/');
   };
 
   return (

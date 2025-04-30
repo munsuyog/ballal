@@ -60,10 +60,7 @@ export default function Navbar() {
                 <Users className="h-4 w-4" />
                 Projects
               </Link>
-              <Link href="/resources" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
-                <BookOpen className="h-4 w-4" />
-                Resources
-              </Link>
+
               <Link href="/coursework" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
                 <GraduationCap className="h-4 w-4" />
                 Coursework
@@ -101,9 +98,6 @@ export default function Navbar() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>{user.displayName || user.email}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">Dashboard</Link>
-                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/profile">Profile</Link>
                   </DropdownMenuItem>

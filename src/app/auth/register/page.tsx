@@ -33,7 +33,7 @@ export default function RegisterPage() {
   };
 
   const handleGoogleSignIn = async () => {
-    await signInWithGoogle('/dashboard');
+    await signInWithGoogle('/');
   };
 
   return (

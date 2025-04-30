@@ -1,424 +1,597 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FilterSidebar } from "@/components/ui/filter-sidebar"
-import { Avatar } from "@/components/ui/avatar"
+import { useState, useEffect } from 'react';
+import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
+  Search, 
   BookOpen, 
-  Calendar,
-  Clock, 
   FileText, 
-  FolderPlus, 
-  GraduationCap,
-  MessageSquare,
-  MoreVertical,
-  PenLine,
-  Plus,
-  Search,
-  Settings,
-  Users,
-  Filter 
-} from "lucide-react"
+  FileVideo, 
+  Lock, 
+  Users, 
+  ExternalLink,
+  Calendar,
+  ArrowLeft 
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+// Course interface
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  code: string;
+  instructorId: string;
+  instructorName: string;
+  createdAt: any;
+  updatedAt: any;
+  students: number;
+  materials: {
+    title: string;
+    description?: string;
+    url: string;
+    type: string;
+  }[];
+}
 
 export default function CourseworkPage() {
-  const [activeTab, setActiveTab] = useState("stream")
-  const [showFilters, setShowFilters] = useState(false)
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({})
-  const [searchQuery, setSearchQuery] = useState("")
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [myCourses, setMyCourses] = useState<Course[]>([]);
+  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('my');
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [courseCode, setCourseCode] = useState('');
+  const [enrolling, setEnrolling] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const courses = [
-    {
-      id: 1,
-      name: "Advanced Database Systems",
-      code: "CS401",
-      instructor: "Dr. Emily Parker",
-      coverColor: "bg-primary/10",
-      nextAssignment: "Database Normalization Project",
-      dueDate: "Feb 10, 2024",
-    },
-    {
-      id: 2,
-      name: "Software Engineering",
-      code: "CS402",
-      instructor: "Prof. David Kim",
-      coverColor: "bg-secondary/10",
-      nextAssignment: "System Design Document",
-      dueDate: "Feb 12, 2024",
-    },
-    {
-      id: 3,
-      name: "Computer Networks",
-      code: "CS403",
-      instructor: "Dr. Lisa Thompson",
-      coverColor: "bg-primary/5",
-      nextAssignment: "Network Protocol Implementation",
-      dueDate: "Feb 15, 2024",
-    },
-  ]
+  // Fetch courses from Firestore
+  useEffect(() => {
+    async function fetchCourses() {
+      if (!user) return;
 
-  const announcements = [
-    {
-      id: 1,
-      course: "Advanced Database Systems",
-      instructor: "Dr. Emily Parker",
-      content: "Guest lecture on NoSQL databases this Thursday. Attendance is mandatory.",
-      date: "2 hours ago",
-      comments: 5,
-    },
-    {
-      id: 2,
-      course: "Software Engineering",
-      instructor: "Prof. David Kim",
-      content: "Project presentations have been rescheduled to next week. Updated schedule posted.",
-      date: "1 day ago",
-      comments: 8,
-    },
-  ]
-
-  const assignments = [
-    {
-      id: 1,
-      title: "Database Normalization Project",
-      course: "Advanced Database Systems",
-      dueDate: "Feb 10, 2024",
-      status: "Not submitted",
-      points: 100,
-    },
-    {
-      id: 2,
-      title: "System Design Document",
-      course: "Software Engineering",
-      dueDate: "Feb 12, 2024",
-      status: "Draft saved",
-      points: 150,
-    },
-    {
-      id: 3,
-      title: "Network Protocol Implementation",
-      course: "Computer Networks",
-      dueDate: "Feb 15, 2024",
-      status: "Not started",
-      points: 120,
-    },
-  ]
-
-  const filterSections = [
-    {
-      id: "department",
-      title: "Department",
-      type: "checkbox" as const,
-      options: [
-        { id: "computer-science", label: "Computer Science", count: 156 },
-        { id: "engineering", label: "Engineering", count: 124 },
-        { id: "mathematics", label: "Mathematics", count: 98 },
-        { id: "physics", label: "Physics", count: 87 },
-        { id: "chemistry", label: "Chemistry", count: 76 },
-      ]
-    },
-    {
-      id: "courseLevel",
-      title: "Course Level",
-      type: "checkbox" as const,
-      options: [
-        { id: "100", label: "100 Level", count: 45 },
-        { id: "200", label: "200 Level", count: 56 },
-        { id: "300", label: "300 Level", count: 78 },
-        { id: "400", label: "400 Level", count: 67 },
-      ]
-    },
-    {
-      id: "semester",
-      title: "Semester",
-      type: "checkbox" as const,
-      options: [
-        { id: "fall-2023", label: "Fall 2023", count: 234 },
-        { id: "spring-2024", label: "Spring 2024", count: 345 },
-        { id: "summer-2024", label: "Summer 2024", count: 123 },
-      ]
-    },
-    {
-      id: "assignmentType",
-      title: "Assignment Type",
-      type: "checkbox" as const,
-      options: [
-        { id: "homework", label: "Homework", count: 189 },
-        { id: "project", label: "Project", count: 145 },
-        { id: "quiz", label: "Quiz", count: 167 },
-        { id: "exam", label: "Exam", count: 98 },
-      ]
-    },
-    {
-      id: "dueDate",
-      title: "Due Date",
-      type: "checkbox" as const,
-      options: [
-        { id: "overdue", label: "Overdue", count: 23 },
-        { id: "due-today", label: "Due Today", count: 12 },
-        { id: "due-this-week", label: "Due This Week", count: 45 },
-        { id: "due-next-week", label: "Due Next Week", count: 67 },
-        { id: "later", label: "Later", count: 89 },
-      ]
+      try {
+        setLoading(true);
+        
+        // Get all courses
+        const coursesCollection = collection(db, 'courses');
+        const courseSnapshot = await getDocs(coursesCollection);
+        
+        const courseList: Course[] = [];
+        courseSnapshot.forEach((doc) => {
+          const data = doc.data();
+          courseList.push({
+            id: doc.id,
+            title: data.title || 'Untitled Course',
+            description: data.description || 'No description',
+            code: data.code || 'XXX000',
+            instructorId: data.instructorId,
+            instructorName: data.instructorName || 'Instructor',
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            students: data.students || 0,
+            materials: data.materials || []
+          });
+        });
+        
+        setAllCourses(courseList);
+        
+        // Get user's enrolled courses
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userData = userDoc.data();
+        const enrolledCourseIds = userData?.enrolledCourses || [];
+        
+        // Filter courses the user is enrolled in
+        const enrolledCourses = courseList.filter(course => 
+          enrolledCourseIds.includes(course.id)
+        );
+        
+        setMyCourses(enrolledCourses);
+        
+        // Set initial filtered courses based on active tab
+        setFilteredCourses(activeTab === 'my' ? enrolledCourses : courseList);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load courses. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
     }
-  ]
 
-  const handleFilterChange = (sectionId: string, values: string[]) => {
-    setSelectedFilters(prev => ({
-      ...prev,
-      [sectionId]: values
-    }))
-  }
+    fetchCourses();
+  }, [user, toast]);
 
-  const clearAllFilters = () => {
-    setSelectedFilters({})
-    setSearchQuery("")
-  }
+  // Filter courses when search query or active tab changes
+  useEffect(() => {
+    const coursesToFilter = activeTab === 'my' ? myCourses : allCourses;
+    
+    if (!searchQuery.trim()) {
+      setFilteredCourses(coursesToFilter);
+      return;
+    }
+    
+    const query = searchQuery.toLowerCase();
+    const filtered = coursesToFilter.filter(
+      course =>
+        course.title.toLowerCase().includes(query) ||
+        course.description.toLowerCase().includes(query) ||
+        course.instructorName.toLowerCase().includes(query)
+    );
+    
+    setFilteredCourses(filtered);
+  }, [searchQuery, activeTab, allCourses, myCourses]);
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchQuery('');
+    setFilteredCourses(value === 'my' ? myCourses : allCourses);
+  };
+
+  // Enroll in a course
+  const handleEnroll = async () => {
+    if (!user || !courseCode.trim()) return;
+    
+    try {
+      setEnrolling(true);
+      
+      // Find course by code
+      const course = allCourses.find(c => c.code.toLowerCase() === courseCode.trim().toLowerCase());
+      
+      if (!course) {
+        toast({
+          title: 'Course Not Found',
+          description: 'No course with that code was found. Please check and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Check if already enrolled
+      if (myCourses.some(c => c.id === course.id)) {
+        toast({
+          title: 'Already Enrolled',
+          description: 'You are already enrolled in this course.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Update user document with enrolled course
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        enrolledCourses: arrayUnion(course.id)
+      });
+      
+      // Increment student count in course
+      const courseRef = doc(db, 'courses', course.id);
+      await updateDoc(courseRef, {
+        students: increment(1)
+      });
+      
+      // Update local state
+      const updatedCourse = { ...course, students: course.students + 1 };
+      setMyCourses([...myCourses, updatedCourse]);
+      
+      if (activeTab === 'my') {
+        setFilteredCourses([...filteredCourses, updatedCourse]);
+      }
+      
+      // Update course in allCourses
+      setAllCourses(allCourses.map(c => 
+        c.id === course.id ? updatedCourse : c
+      ));
+      
+      setCourseCode('');
+      setEnrollDialogOpen(false);
+      
+      toast({
+        title: 'Enrollment Successful',
+        description: `You have been enrolled in ${course.title}.`,
+      });
+    } catch (error) {
+      console.error('Error enrolling in course:', error);
+      toast({
+        title: 'Enrollment Failed',
+        description: 'Failed to enroll in the course. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  // Format date
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'Unknown date';
+    
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString();
+  };
+
+  // Get icon for material type
+  const getMaterialIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'pdf':
+        return <FileText className="h-4 w-4" />;
+      case 'video':
+        return <FileVideo className="h-4 w-4" />;
+      case 'article':
+        return <BookOpen className="h-4 w-4" />;
+      case 'assignment':
+        return <FileText className="h-4 w-4" />;
+      case 'quiz':
+        return <FileText className="h-4 w-4" />;
+      default:
+        return <FileText className="h-4 w-4" />;
+    }
+  };
+
+  // Get material type badge color
+  const getMaterialTypeColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'pdf':
+        return 'bg-blue-100 text-blue-800';
+      case 'video':
+        return 'bg-red-100 text-red-800';
+      case 'article':
+        return 'bg-green-100 text-green-800';
+      case 'assignment':
+        return 'bg-purple-100 text-purple-800';
+      case 'quiz':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Get instructor initials for avatar
+  const getInstructorInitials = (name: string) => {
+    if (!name) return 'IN';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  // if (loading) {
+  //   return <div className="container mx-auto px-4 pt-24 pb-12 text-center">Loading courses...</div>;
+  // }
 
   return (
-    <div className="coursework-bg min-h-screen">
-      <div className="container mx-auto px-4 pt-24 pb-12">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Coursework</h1>
-            <p className="text-muted-foreground">Manage your courses, assignments, and academic progress</p>
-          </div>
-          <div className="flex gap-4">
-            <Button>
-              <FolderPlus className="h-4 w-4 mr-2" />
-              Join Course
-            </Button>
-            <Button variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-4 gap-6">
-          {showFilters && (
-            <div className="lg:col-span-1">
-              <FilterSidebar
-                sections={filterSections}
-                selectedFilters={selectedFilters}
-                onFilterChange={handleFilterChange}
-                onClearAll={clearAllFilters}
-              />
+    <div className="container mx-auto px-4 pt-24 pb-12">
+      {!selectedCourse ? (
+        // Course list view
+        <>
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Coursework</h1>
+              <p className="text-muted-foreground">Browse and access your enrolled courses</p>
             </div>
-          )}
-
-          <div className={`${showFilters ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
-            <div className="flex gap-4 mb-8">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>Enroll in Course</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Enroll in a Course</DialogTitle>
+                  <DialogDescription>
+                    Enter the course code provided by your instructor to enroll.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
                   <Input
-                    placeholder="Search courses, assignments, or announcements..."
-                    className="pl-10"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Enter course code (e.g. ABC123)"
+                    value={courseCode}
+                    onChange={(e) => setCourseCode(e.target.value)}
                   />
                 </div>
-              </div>
-              <Button 
-                variant={showFilters ? "default" : "outline"}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-                {Object.keys(selectedFilters).length > 0 && (
-                  <span className="ml-2 bg-primary/20 px-2 py-0.5 rounded-full text-xs">
-                    {Object.values(selectedFilters).flat().length}
-                  </span>
-                )}
-              </Button>
+                <DialogFooter>
+                  <Button onClick={handleEnroll} disabled={enrolling || !courseCode.trim()}>
+                    {enrolling ? 'Enrolling...' : 'Enroll'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search courses..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-
-            <div className="grid lg:grid-cols-4 gap-6 mb-8">
-              <Card className="lg:col-span-3">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5 text-primary" />
-                    <CardTitle>Current Semester</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {courses.map((course) => (
-                      <Card key={course.id} className="hover:shadow-md transition-shadow">
-                        <div className={`h-20 ${course.coverColor} relative`}>
-                          <Button variant="ghost" size="icon" className="absolute right-2 top-2">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
+          </div>
+          
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="grid w-full grid-cols-2 max-w-md mb-8">
+              <TabsTrigger value="my">My Courses</TabsTrigger>
+              <TabsTrigger value="all">All Courses</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all" className="mt-0">
+            {filteredCourses.length === 0 ? (
+              <div className="text-center py-12 border rounded-lg">
+                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-lg font-medium mb-2">No courses found</h3>
+                <p className="text-muted-foreground">
+                  {searchQuery ? 'Try a different search term' : 'There are no courses available yet'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCourses.map((course) => (
+                  <Card key={course.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle>{course.title}</CardTitle>
+                        <Badge variant="outline">{course.code}</Badge>
+                      </div>
+                      <CardDescription className="line-clamp-2">{course.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center mb-4">
+                        <Avatar className="h-8 w-8 mr-2">
+                          <AvatarFallback>{getInstructorInitials(course.instructorName)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{course.instructorName}</p>
+                          <p className="text-xs text-muted-foreground">Instructor</p>
                         </div>
-                        <CardHeader>
-                          <CardTitle className="text-lg">{course.name}</CardTitle>
-                          <CardDescription>{course.code} • {course.instructor}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-sm">
-                          <p className="text-muted-foreground mb-1">Next Assignment:</p>
-                          <p className="font-medium">{course.nextAssignment}</p>
-                          <p className="text-sm text-muted-foreground mt-2">Due: {course.dueDate}</p>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="outline" className="w-full">Join Course</Button>
-                        </CardFooter>
-                      </Card>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>{course.students} students</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span>{course.materials.length} materials</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>{formatDate(course.updatedAt)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="bg-muted p-4 flex justify-between">
+                      {myCourses.some(c => c.id === course.id) ? (
+                        <Button onClick={() => setSelectedCourse(course)} variant="outline">
+                          View Course
+                        </Button>
+                      ) : (
+                        <Button 
+                          onClick={() => {
+                            setCourseCode(course.code);
+                            setEnrollDialogOpen(true);
+                          }}
+                        >
+                          Enroll
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+            </TabsContent>
+            <TabsContent value="my" className="mt-0">
+            {filteredCourses.length === 0 ? (
+              <div className="text-center py-12 border rounded-lg">
+                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-lg font-medium mb-2">Not enrolled in any courses</h3>
+                <p className="text-muted-foreground mb-6">
+                  {searchQuery ? 'Try a different search term' : 'Enroll in a course to get started'}
+                </p>
+                <Button onClick={() => setEnrollDialogOpen(true)}>
+                  Enroll in a Course
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCourses.map((course) => (
+                  <Card key={course.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedCourse(course)}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle>{course.title}</CardTitle>
+                        <Badge variant="outline">{course.code}</Badge>
+                      </div>
+                      <CardDescription className="line-clamp-2">{course.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center mb-4">
+                        <Avatar className="h-8 w-8 mr-2">
+                          <AvatarFallback>{getInstructorInitials(course.instructorName)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{course.instructorName}</p>
+                          <p className="text-xs text-muted-foreground">Instructor</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex items-center gap-1">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span>{course.materials.length} materials</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>Updated: {formatDate(course.updatedAt)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="bg-muted p-4 flex justify-end">
+                      <Button variant="outline">
+                        View Materials
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          </Tabs>
+          
 
+        </>
+      ) : (
+        // Course detail view
+        <div className="space-y-8">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setSelectedCourse(null)}
+              className="h-10 w-10"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold mb-1">{selectedCourse.title}</h1>
+              <p className="text-muted-foreground flex items-center gap-2">
+                <Badge variant="outline">{selectedCourse.code}</Badge>
+                <span className="text-sm">•</span>
+                <span>{selectedCourse.instructorName}</span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3 space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Upcoming</CardTitle>
+                  <CardTitle>Course Description</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {assignments.slice(0, 3).map((assignment) => (
-                    <div key={assignment.id} className="flex items-start gap-3">
-                      <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                      <div>
-                        <p className="font-medium">{assignment.title}</p>
-                        <p className="text-sm text-muted-foreground">{assignment.course}</p>
-                        <p className="text-sm text-muted-foreground">Due: {assignment.dueDate}</p>
-                      </div>
-                    </div>
-                  ))}
+                <CardContent>
+                  <p>{selectedCourse.description}</p>
                 </CardContent>
               </Card>
-            </div>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-              <TabsList>
-                <TabsTrigger value="stream">Stream</TabsTrigger>
-                <TabsTrigger value="assignments">Assignments</TabsTrigger>
-                <TabsTrigger value="grades">Grades</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="stream" className="space-y-6">
-                <div className="grid lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 space-y-6">
-                    {announcements.map((announcement) => (
-                      <Card key={announcement.id}>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div className="flex gap-4">
-                              <Avatar />
-                              <div>
-                                <CardTitle className="text-base">{announcement.instructor}</CardTitle>
-                                <CardDescription>{announcement.course} • {announcement.date}</CardDescription>
-                              </div>
-                            </div>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p>{announcement.content}</p>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="ghost" size="sm">
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            {announcement.comments} comments
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))}
-                  </div>
-
-                  <div className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>To-Do</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {assignments.map((assignment) => (
-                          <div key={assignment.id} className="flex items-start gap-3">
-                            <PenLine className="h-4 w-4 text-muted-foreground mt-1" />
-                            <div>
-                              <p className="font-medium">{assignment.title}</p>
-                              <p className="text-sm text-muted-foreground">{assignment.course}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Clock className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">Due {assignment.dueDate}</span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="assignments" className="space-y-6">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {assignments.map((assignment) => (
-                    <Card key={assignment.id}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle>{assignment.title}</CardTitle>
-                            <CardDescription>{assignment.course}</CardDescription>
-                          </div>
-                          <FileText className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Due Date:</span>
-                            <span>{assignment.dueDate}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Status:</span>
-                            <span>{assignment.status}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Points:</span>
-                            <span>{assignment.points}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter>
-                        <Button className="w-full">View Assignment</Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="grades">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Grade Summary</CardTitle>
-                    <CardDescription>View your academic performance across all courses</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Course Materials</CardTitle>
+                  <Badge variant="outline">{selectedCourse.materials.length} items</Badge>
+                </CardHeader>
+                <CardContent>
+                  {selectedCourse.materials.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <h3 className="text-lg font-medium mb-2">No materials yet</h3>
+                      <p className="text-muted-foreground">
+                        The instructor hasn't added any course materials yet.
+                      </p>
+                    </div>
+                  ) : (
                     <div className="space-y-4">
-                      {courses.map((course) => (
-                        <div key={course.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div>
-                            <h4 className="font-medium">{course.name}</h4>
-                            <p className="text-sm text-muted-foreground">{course.code}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">92%</p>
-                            <p className="text-sm text-muted-foreground">A</p>
+                      {selectedCourse.materials.map((material, index) => (
+                        <div key={index} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex gap-3">
+                              <div className="mt-1">
+                                {getMaterialIcon(material.type)}
+                              </div>
+                              <div>
+                                <h4 className="font-medium mb-1">{material.title}</h4>
+                                {material.description && (
+                                  <p className="text-sm text-muted-foreground mb-2">
+                                    {material.description}
+                                  </p>
+                                )}
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs"
+                                >
+                                  {material.type.toUpperCase()}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              className="gap-1"
+                              asChild
+                            >
+                              <a href={material.url} target="_blank" rel="noopener noreferrer">
+                                <span>View</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </Button>
                           </div>
                         </div>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Course Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Instructor</p>
+                    <div className="flex items-center mt-1">
+                      <Avatar className="h-8 w-8 mr-2">
+                        <AvatarFallback>{getInstructorInitials(selectedCourse.instructorName)}</AvatarFallback>
+                      </Avatar>
+                      <p className="font-medium">{selectedCourse.instructorName}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-muted-foreground">Enrolled Students</p>
+                    <p className="font-medium flex items-center gap-2 mt-1">
+                      <Users className="h-4 w-4" />
+                      {selectedCourse.students}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-muted-foreground">Course Created</p>
+                    <p className="font-medium mt-1">{formatDate(selectedCourse.createdAt)}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-muted-foreground">Last Updated</p>
+                    <p className="font-medium mt-1">{formatDate(selectedCourse.updatedAt)}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
-  )
+  );
 }
